@@ -1,0 +1,44 @@
+apply plugin: 'java'
+apply plugin: 'application'
+
+version = '3.3.2'
+sourceCompatibility = '1.8'
+
+repositories {
+    jcenter()
+}
+
+// In this section you declare the dependencies for your production and test code
+dependencies {
+
+	compile "io.vertx:vertx-core:$version"
+	compile "io.vertx:vertx-web:$version"
+	
+    //==========//
+    // Logging	//
+    //==========//
+    compile 'org.slf4j:slf4j-api:1.7.21'
+    compile group: 'ch.qos.logback', name: 'logback-classic', version: '0.9.26'
+    
+    //==========//
+    // Testing	//
+    //==========//
+    // Junit
+    testCompile 'junit:junit:4.12'
+}
+
+mainClassName = 'io.vertx.core.Launcher'
+
+//create a single Jar with all dependencies
+task fatJar(type: Jar) {
+	manifest {
+        attributes 'Implementation-Title': 'ChatStream Server',  
+        	'Implementation-Version': 0.1,
+        	'Main-Class': mainClassName,
+        	'Main-Verticle': 'com.chatstream.server.ServerVerticle';
+    }
+
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
