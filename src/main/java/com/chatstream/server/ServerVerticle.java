@@ -22,6 +22,11 @@ import io.vertx.core.json.JsonObject;
 
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
+import io.vertx.ext.web.handler.StaticHandler;
+import io.vertx.ext.web.handler.sockjs.BridgeEventType;
+import io.vertx.ext.web.handler.sockjs.BridgeOptions;
+import io.vertx.ext.web.handler.sockjs.PermittedOptions;
+import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 
 public class ServerVerticle extends AbstractVerticle {
 	
@@ -49,7 +54,7 @@ public class ServerVerticle extends AbstractVerticle {
 		//==============================//
 		
 		HttpServer server = vertx.createHttpServer();
-	
+		
 		Router router = Router.router(vertx);
 		
 		router.route().handler(BodyHandler.create());
@@ -182,6 +187,10 @@ public class ServerVerticle extends AbstractVerticle {
 			}
 		});
 		
+		router.route().handler(StaticHandler.create());
+		
+		router.route("/eventbus/*").handler(eventBusHandler());
+		
 		//router.put("/channels/:channelid").handler(requestHandler)
 //		
 //		vertx.eventBus().consumer("user/signIn").handler(msg ->{
@@ -192,4 +201,16 @@ public class ServerVerticle extends AbstractVerticle {
 		server.requestHandler(router::accept).listen(port);
 		logger.info("Server deployed. Listening to port: [{}]", Integer.toString(port));	
 	}
+	
+	
+    private SockJSHandler eventBusHandler() {
+        BridgeOptions options = new BridgeOptions()
+            .addOutboundPermitted(new PermittedOptions().setAddressRegex("chat\\.[0-9]+"));
+        return SockJSHandler.create(vertx).bridge(options, event -> {
+            if (event.type() == BridgeEventType.SOCKET_CREATED) {
+                logger.info("A socket was created");
+            }
+            event.complete(true);
+        });
+    }
 }

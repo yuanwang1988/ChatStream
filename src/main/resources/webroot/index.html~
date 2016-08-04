@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <script src="http://cdnjs.cloudflare.com/ajax/libs/sockjs-client/0.3.4/sockjs.min.js"></script>
-  <script src="./js/vertxbus.min.js"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/vertx/2.0.0/vertxbus.min.js"></script>
   <script>
   window.onload = function () {
 	  var eventBus = new vertx.EventBus("http://localhost:8080/");
