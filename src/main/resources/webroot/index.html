@@ -22,7 +22,7 @@
 
 					var msgStr = JSON.stringify({"User ID":this.msg.user, "Message Body": this.msg.body});
 					console.log(msgStr);
-					$http.post("http://localhost:8080/channels/General", msgStr).
+					$http.post("http://54.183.245.125:8080//channels/General", msgStr).
 						success(function(data, status, headers, config){
 							console.log(JSON.stringify(data));
 						}).
