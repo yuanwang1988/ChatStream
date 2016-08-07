@@ -57,6 +57,8 @@ public class ServerVerticle extends AbstractVerticle {
 		
 		Router router = Router.router(vertx);
 		
+		router.route("/eventbus/*").handler(eventBusHandler());
+		
 		router.route().handler(BodyHandler.create());
 		
 		//GET or Add to list of Users
@@ -179,6 +181,8 @@ public class ServerVerticle extends AbstractVerticle {
 				Msg msg = Msg.getInstanceFromJson(msgJson);
 				channel.consumeMessage(msg);
 				
+				vertx.eventBus().publish("channels.General", msgJson);
+				
 				rc.reroute(HttpMethod.GET, rc.normalisedPath());
 				
 			} catch (IOException e) {
@@ -189,7 +193,7 @@ public class ServerVerticle extends AbstractVerticle {
 		
 		router.route().handler(StaticHandler.create());
 		
-		router.route("/eventbus/*").handler(eventBusHandler());
+		
 		
 		//router.put("/channels/:channelid").handler(requestHandler)
 //		
@@ -200,12 +204,13 @@ public class ServerVerticle extends AbstractVerticle {
 	
 		server.requestHandler(router::accept).listen(port);
 		logger.info("Server deployed. Listening to port: [{}]", Integer.toString(port));	
+		startFuture.complete();
 	}
 	
 	
     private SockJSHandler eventBusHandler() {
         BridgeOptions options = new BridgeOptions()
-            .addOutboundPermitted(new PermittedOptions().setAddressRegex("chat\\.[0-9]+"));
+            .addOutboundPermitted(new PermittedOptions().setAddressRegex("channels\\.General"));
         return SockJSHandler.create(vertx).bridge(options, event -> {
             if (event.type() == BridgeEventType.SOCKET_CREATED) {
                 logger.info("A socket was created");

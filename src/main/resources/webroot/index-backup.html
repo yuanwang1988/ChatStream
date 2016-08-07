@@ -9,56 +9,46 @@
 		<script src="/static/js/vertx-bus.js"></script>
 		<script type="text/javascript">
 
-			//var serverURL = "localhost:8080";
-			var serverURL = "54.183.245.125:8080"
+			var serverURL = "localhost:8080";
 
 
-			var app = angular.module('instantChat', []);
+			var app = angular.module('instantChat', ['knalli.angular-vertxbus']);
 
 			var msgHistory=[];
+			var channelStr = "test";
 
 			var eventBus = new EventBus('http://' + serverURL + '/eventbus');
 
-			eventBus.onopen = function () {
-        		eventBus.registerHandler('channels.General', function (error, message) {
-        			console.log("Msg received from event bus: " + JSON.stringify(message));
-        			msg = {};
-        			msg.user = message.body['User ID'];
-        			msg.body = message.body['Message Body'];
 
-        			msgHistory.push(msg);
-        			console.log("Msg history after msg received from event bus" + msgHistory)
-        		});
-        	}
+			// eventBus.publish("channels.General", {data: 123}, null);
 
-			app.controller("msgHistoryController", function($http, $scope){
+			app.controller("msgHistoryController", function($http, $scope, $eventBus){
 				this.msgs = msgHistory;
+
+				$scope.channelStr = channelStr;
 
 				$http.get("http://" + serverURL + "/channels/General").
 						success(function(data, status, headers, config){
-							console.log(JSON.stringify(data));
-							msgList = data["Message History"];
-							console.log(msgList);
-							for(i = 0; i < msgList.length; i++){
-								message = msgList[i];
-								msg = {};
-								msg.user = message["User ID"];
-								msg.body = message["Message Body"];
-								console.log(message);
-								console.log(msg);
-								msgHistory.push(msg);
-							}
+							$scope.channelStr = JSON.stringify(data, null, 2);
+							console.log($scope.channelStr);
 						}).
 						error(function(data, status, headers, config){
 							console.log(status);
 						});
+
+				$eventBus.onopen = function () {
+        		eventBus.registerHandler('channels.General', function (error, message) {
+        			msgHistory.push(JSON.stringify(message));
+        		});
+        	}
 
 			});
 
 			app.controller("inputFormController", function($http){
 				this.msg = {};
 				this.submitMsg = function(){
-					//msgHistory.push(this.msg);
+					this.msg.timeStamp = Date.now();
+					msgHistory.push(this.msg);
 
 					var msgStr = JSON.stringify({"User ID":this.msg.user, "Message Body": this.msg.body});
 					console.log(msgStr);
@@ -81,7 +71,8 @@
 		<div>
 			<p>Chat history:</p>
 			<ol ng-controller="msgHistoryController as msgHistoryCtrl">
-				<li ng-repeat="msg in msgHistoryCtrl.msgs">[{{msg.user}} : {{msg.body}}]</li>
+				<li>{{channelStr}}</li>
+				<li ng-repeat="msg in msgHistoryCtrl.msgs">[{{msg.user}} : {{msg.body}} - {{msg.timeStamp | date:'MM/dd/yyyy @ h:mma'}}]</li>
 			</ol>
 
 			<form name="msgInput" ng-controller="inputFormController as inputForm" 
