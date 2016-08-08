@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html np-app="store">
+	<head>
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+		<script src="http://code.jquery.com/jquery-1.8.0.min.js"></script>
+		<script src="//cdn.jsdelivr.net/sockjs/0.3.4/sockjs.min.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.6/angular.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-vertxbus/6.0.0/angular-vertxbus.js"></script>
+		<script src="/static/js/vertx-bus.js"></script>
+		<script type="text/javascript">
+
+			var serverURL = "localhost:8080";
+			//var serverURL = "54.183.245.125:8080"
+
+
+			var app = angular.module('instantChat', ['knalli.angular-vertxbus']).
+				config(function(vertxEventBusProvider){
+					vertxEventBusProvider
+					.enable()
+					.useReconnect()
+					.useUrlServer('http://' + serverURL);
+				});
+
+			var msgHistory=[];
+
+			// var eventBus = new EventBus('http://' + serverURL + '/eventbus');
+
+			// eventBus.onopen = function () {
+   //      		eventBus.registerHandler('channels.General', function (error, message) {
+   //      			console.log("Msg received from event bus: " + JSON.stringify(message));
+   //      			msg = {};
+   //      			msg.user = message.body['User ID'];
+   //      			msg.body = message.body['Message Body'];
+
+   //      			msgHistory.push(msg);
+   //      			console.log("Msg history after msg received from event bus" + msgHistory)
+   //      		});
+   //      	}
+
+			app.controller("msgHistoryController", function($http, $scope, vertxEventBus){
+				this.msgs = msgHistory;
+
+				$http.get("http://" + serverURL + "/channels/General").
+						success(function(data, status, headers, config){
+							console.log(JSON.stringify(data));
+							msgList = data["Message History"];
+							console.log(msgList);
+							for(i = 0; i < msgList.length; i++){
+								message = msgList[i];
+								msg = {};
+								msg.user = message["User ID"];
+								msg.body = message["Message Body"];
+								console.log(message);
+								console.log(msg);
+								msgHistory.push(msg);
+							}
+						}).
+						error(function(data, status, headers, config){
+							console.log(status);
+						});
+
+				vertxEventBus.onopen = function() {
+					vertxEventBus.registerHandler('channels.General', function (error, message) {
+	        			console.log("Msg received from event bus: " + JSON.stringify(message));
+	        			msg = {};
+	        			msg.user = message.body['User ID'];
+	        			msg.body = message.body['Message Body'];
+
+	        			msgHistory.push(msg);
+	        			console.log("Msg history after msg received from event bus" + msgHistory)
+        			});
+				}
+
+			});
+
+			app.controller("inputFormController", function($http){
+				this.msg = {};
+				this.submitMsg = function(){
+					//msgHistory.push(this.msg);
+
+					var msgStr = JSON.stringify({"User ID":this.msg.user, "Message Body": this.msg.body});
+					console.log(msgStr);
+					$http.post("http://" + serverURL + "/channels/General", msgStr).
+						success(function(data, status, headers, config){
+							console.log(JSON.stringify(data));
+						}).
+						error(function(data, status, headers, config){
+							console.log(status);
+						});
+
+					tmp = this.msg.user;
+					this.msg = {};
+					this.msg.user = tmp;
+				};
+			});
+		</script>
+	</head>
+	<body ng-app="instantChat">
+		<div>
+			<p>Chat history:</p>
+			<ol ng-controller="msgHistoryController as msgHistoryCtrl">
+				<li ng-repeat="msg in msgHistoryCtrl.msgs">[{{msg.user}} : {{msg.body}}]</li>
+			</ol>
+
+			<form name="msgInput" ng-controller="inputFormController as inputForm" 
+			ng-submit="inputForm.submitMsg()"
+			novalidate>
+				<p>Chat preview window: </p>
+				<p>[{{inputForm.msg.user + ": " + inputForm.msg.body}}]</p>
+				
+				<p>Is the input valid: {{msgInput.$valid}}</p>
+
+				<p> User: </p>
+				<p><input type="text" ng-model="inputForm.msg.user" required></p>
+				<p> Message: </p>
+				<p><textarea rows="4" cols="50" ng-model="inputForm.msg.body" required> </textarea></p>
+				<input type="submit" id="submit" value="Submit" />
+
+			</form>
+
+		</div>
+	</body>
+</html>

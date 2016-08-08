@@ -12,94 +12,135 @@
 			//var serverURL = "localhost:8080";
 			var serverURL = "54.183.245.125:8080"
 
-
-			var app = angular.module('instantChat', []);
-
+			
 			var msgHistory=[];
 
-			var eventBus = new EventBus('http://' + serverURL + '/eventbus');
+			function init(){
+				loadMsgHistory("General");
+				registerEventBusHandler("General");
+			}
 
-			eventBus.onopen = function () {
-        		eventBus.registerHandler('channels.General', function (error, message) {
-        			console.log("Msg received from event bus: " + JSON.stringify(message));
-        			msg = {};
-        			msg.user = message.body['User ID'];
-        			msg.body = message.body['Message Body'];
+			function loadMsgHistory(channelID){
+				// http.get("http://" + serverURL + "/channels/" + channelID).
+				// 		success(function(data, status, headers, config){
+				// 			console.log(JSON.stringify(data));
+				// 			msgList = data["Message History"];
+				// 			console.log(msgList);
+				// 			for(i = 0; i < msgList.length; i++){
+				// 				message = msgList[i];
+				// 				msg = {};
+				// 				msg.user = message["User ID"];
+				// 				msg.body = message["Message Body"];
+				// 				console.log(message);
+				// 				console.log(msg);
+				// 				msgHistory.push(msg);
+				// 			}
+				// 		}).
+				// 		error(function(data, status, headers, config){
+				// 			console.log(status);
+				// 		});
 
-        			msgHistory.push(msg);
-        			console.log("Msg history after msg received from event bus" + msgHistory)
-        		});
-        	}
-
-			app.controller("msgHistoryController", function($http, $scope){
-				this.msgs = msgHistory;
-
-				$http.get("http://" + serverURL + "/channels/General").
-						success(function(data, status, headers, config){
-							console.log(JSON.stringify(data));
-							msgList = data["Message History"];
-							console.log(msgList);
-							for(i = 0; i < msgList.length; i++){
+				var xmlhttp = (window.XMLHttpRequest) ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP");
+    			xmlhttp.onreadystatechange = function () {
+        			if (xmlhttp.readyState == 4) {
+            			if (xmlhttp.status == 200) {
+            				var data = JSON.parse(xmlhttp.responseText);
+            				var msgList = data["Message History"];
+            				console.log(msgList);
+            				for(i = 0; i < msgList.length; i++){
 								message = msgList[i];
 								msg = {};
 								msg.user = message["User ID"];
 								msg.body = message["Message Body"];
-								console.log(message);
-								console.log(msg);
+								// console.log(message);
+								// console.log(msg);
 								msgHistory.push(msg);
 							}
-						}).
-						error(function(data, status, headers, config){
-							console.log(status);
-						});
+							
+							console.log(msgHistory)
 
-			});
+							for(i = 0; i < msgHistory.length; i++){
+								document.getElementById('feed').value += msgHistory[i].user + ": " + msgHistory[i].body + "\n";
+							}
+            				
+            			} else {
+            				
+            			}
+        			}
+    			};
+    			
+    			xmlhttp.open("GET", "http://" + serverURL + "/channels/" + channelID, true);
+    			xmlhttp.send();
+			}
 
-			app.controller("inputFormController", function($http){
-				this.msg = {};
-				this.submitMsg = function(){
-					//msgHistory.push(this.msg);
+			function sendMsg(){
+				channelID = "General";
+				var msg = {};
+				msg.user = document.getElementById('user').value;
+				msg.body = document.getElementById('body').value;
 
-					var msgStr = JSON.stringify({"User ID":this.msg.user, "Message Body": this.msg.body});
-					console.log(msgStr);
-					$http.post("http://" + serverURL + "/channels/General", msgStr).
-						success(function(data, status, headers, config){
-							console.log(JSON.stringify(data));
-						}).
-						error(function(data, status, headers, config){
-							console.log(status);
-						});
+				postMsg(channelID, msg);
 
-					tmp = this.msg.user;
-					this.msg = {};
-					this.msg.user = tmp;
-				};
-			});
+			}
+
+			function postMsg(channelID, msg){
+				var msgStr = JSON.stringify({"User ID":msg.user, "Message Body": msg.body});
+
+				var xmlhttp = (window.XMLHttpRequest) ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP");
+				xmlhttp.onreadystatechange = function () {
+				   	if (xmlhttp.readyState == 4) {
+				    	if (xmlhttp.status == 200) {
+				    		console.log("Message post successful");
+				    	} else {
+				    		console.log("Message not posted");
+				    	}
+				    }
+				}
+        
+
+				xmlhttp.open("POST", "http://" + serverURL + "/channels/" + channelID, true);
+				xmlhttp.setRequestHeader("Content-type", "application/json");
+				xmlhttp.send(msgStr);
+			}
+
+			function registerEventBusHandler(channelID){
+
+				var eventBus = new EventBus('http://' + serverURL + '/eventbus');
+
+				eventBus.onopen = function () {
+	        		eventBus.registerHandler('channels.'+channelID, function (error, message) {
+	        			console.log("Msg received from channel [" + channelID + "]: [" + JSON.stringify(message) + "]");
+	        			msg = {};
+	        			msg.user = message.body['User ID'];
+	        			msg.body = message.body['Message Body'];
+
+	        			msgHistory.push(msg);
+	        			document.getElementById('feed').value += msg.user + ": " + msg.body + "\n";
+
+	        			//console.log("Msg history after msg received from event bus" + msgHistory)
+	        		});
+        		}
+        	}
 		</script>
 	</head>
-	<body ng-app="instantChat">
-		<div>
-			<p>Chat history:</p>
-			<ol ng-controller="msgHistoryController as msgHistoryCtrl">
-				<li ng-repeat="msg in msgHistoryCtrl.msgs">[{{msg.user}} : {{msg.body}}]</li>
-			</ol>
+	<body onload="init();">
 
-			<form name="msgInput" ng-controller="inputFormController as inputForm" 
-			ng-submit="inputForm.submitMsg()"
-			novalidate>
-				<p>Chat preview window: </p>
-				<p>[{{inputForm.msg.user + ": " + inputForm.msg.body}}]</p>
-				
-				<p>Is the input valid: {{msgInput.$valid}}</p>
-
-				<p> User: </p>
-				<p><input type="text" ng-model="inputForm.msg.user" required></p>
-				<p> Message: </p>
-				<p><textarea rows="4" cols="50" ng-model="inputForm.msg.body" required> </textarea></p>
-				<input type="submit" id="submit" value="Submit" />
-
-			</form>
-
-		</div>
+		<h3>Chat: General</h3>
+			<div id="error_message"></div>
+		<form>
+			<div>
+	        	Chat History:
+	        	<textarea id="feed" rows="10" cols="50" readonly></textarea>
+	    	</div>
+	    		Your Message:
+	    	<span id="message entry"></span>
+	    	<div>
+	        	<label for="user">User Name:</label>
+	        	<input id="user" type="text">
+	        	<label for="body">Message:</label>
+	        	<input id="body" type="text">
+	        	<input type="button" onclick="sendMsg();" value="Send">
+	    	</div>
+		</form>
 	</body>
 </html>
